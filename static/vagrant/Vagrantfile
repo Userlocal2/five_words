@@ -1,3 +1,4 @@
+# source https://github.com/salines/vagrant-cakephp
 # Mount WEB-APP dir
 #$projectFolderPath = '~/projects/payboutique'
 $projectFolderPath = '../code'
