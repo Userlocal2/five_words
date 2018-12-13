@@ -29,6 +29,7 @@ require __DIR__ . '/paths.php';
  */
 require CORE_PATH . 'config' . DS . 'bootstrap.php';
 
+use App\Lib\Platforms;
 use Cake\Cache\Cache;
 use Cake\Console\ConsoleErrorHandler;
 use Cake\Core\App;
@@ -68,7 +69,8 @@ use Cake\Utility\Security;
 try {
     Configure::config('default', new PhpConfig());
     Configure::load('app', 'default', false);
-} catch (\Exception $e) {
+}
+catch (\Exception $e) {
     exit($e->getMessage() . "\n");
 }
 
@@ -78,6 +80,31 @@ try {
  * shared configuration.
  */
 //Configure::load('app_local', 'default');
+Configure::load('database', 'default');
+Configure::load('core_local', 'default');
+
+
+// this must be after loading configuration database and core_local (both)
+$host     = env('HTTP_HOST');
+$connect  = '';
+$platform = Platforms::$default;
+
+if ('cli' == PHP_SAPI) {
+    $platform = Platforms::getPlatformByShell();
+    define('LOGS', ROOT . DS . 'logs-cli' . DS . $platform . DS);
+}
+elseif (!empty($host)) {
+    $platform = Platforms::getPlatformByHost($host);
+    if(!empty($_REQUEST['cc'])){
+        $platform = Platforms::getPlatformByCC($_REQUEST['cc']);
+    }
+
+    define('LOGS', ROOT . DS . 'logs' . DS . $platform . DS);
+}
+Configure::write('LogDir', LOGS);
+Platforms::setPlatform($platform);
+
+$connect = ($platform === Platforms::$default) ? '' : $platform;
 
 /*
  * When debug = true the metadata cache should only last
@@ -113,7 +140,8 @@ ini_set('intl.default_locale', Configure::read('App.defaultLocale'));
 $isCli = PHP_SAPI === 'cli';
 if ($isCli) {
     (new ConsoleErrorHandler(Configure::read('Error')))->register();
-} else {
+}
+else {
     (new ErrorHandler(Configure::read('Error')))->register();
 }
 
@@ -150,6 +178,10 @@ Email::setConfig(Configure::consume('Email'));
 Log::setConfig(Configure::consume('Log'));
 Security::setSalt(Configure::consume('Security.salt'));
 
+if ('' !== $connect) {
+    \Cake\DataSource\ConnectionManager::alias($connect, 'default');
+}
+
 /*
  * The default crypto extension in 3.0 is OpenSSL.
  * If you are migrating from 2.x uncomment this code to
@@ -160,16 +192,22 @@ Security::setSalt(Configure::consume('Security.salt'));
 /*
  * Setup detectors for mobile and tablet.
  */
-ServerRequest::addDetector('mobile', function ($request) {
-    $detector = new \Detection\MobileDetect();
+ServerRequest::addDetector(
+    'mobile',
+    function ($request) {
+        $detector = new \Detection\MobileDetect();
 
-    return $detector->isMobile();
-});
-ServerRequest::addDetector('tablet', function ($request) {
-    $detector = new \Detection\MobileDetect();
+        return $detector->isMobile();
+    }
+);
+ServerRequest::addDetector(
+    'tablet',
+    function ($request) {
+        $detector = new \Detection\MobileDetect();
 
-    return $detector->isTablet();
-});
+        return $detector->isTablet();
+    }
+);
 
 /*
  * Enable immutable time objects in the ORM.
@@ -197,3 +235,21 @@ Type::build('timestamp')
 //Inflector::rules('irregular', ['red' => 'redlings']);
 //Inflector::rules('uninflected', ['dontinflectme']);
 //Inflector::rules('transliteration', ['/å/' => 'aa']);
+
+/*
+ * Plugins need to be loaded manually, you can either load them one by one or all of them in a single call
+ * Uncomment one of the lines below, as you need. make sure you read the documentation on Plugin to use more
+ * advanced ways of loading plugins
+ *
+ * Plugin::loadAll(); // Loads all plugins at once
+ * Plugin::load('Migrations'); //Loads a single plugin named Migrations
+ *
+ */
+
+/*
+ * Only try to load DebugKit in development mode
+ * Debug Kit should not be installed on a production system
+ */
+if (Configure::read('debug')) {
+    Plugin::load('DebugKit', ['bootstrap' => true]);
+}

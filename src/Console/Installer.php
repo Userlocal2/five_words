@@ -57,6 +57,8 @@ class Installer
         $rootDir = dirname(dirname(__DIR__));
 
         static::createAppConfig($rootDir, $io);
+        static::createDatabaseConfig($rootDir, $io);
+        static::createCoreLocalConfig($rootDir, $io);
         static::createWritableDirectories($rootDir, $io);
 
         // ask if the permissions should be changed
@@ -103,6 +105,42 @@ class Installer
         if (!file_exists($appConfig)) {
             copy($defaultConfig, $appConfig);
             $io->write('Created `config/app.php` file');
+        }
+    }
+
+
+    /**
+     * Create the config/app.php file if it does not exist.
+     *
+     * @param string $dir The application's root directory.
+     * @param \Composer\IO\IOInterface $io IO interface to write to console.
+     * @return void
+     */
+    public static function createDatabaseConfig($dir, $io)
+    {
+        $databaseConfig = $dir . '/config/database.php';
+        $defaultConfig = $dir . '/config/database.default.php';
+        if (!file_exists($databaseConfig)) {
+            copy($defaultConfig, $databaseConfig);
+            $io->write('Created `config/database.php` file');
+        }
+    }
+
+
+    /**
+     * Create the config/app.php file if it does not exist.
+     *
+     * @param string $dir The application's root directory.
+     * @param \Composer\IO\IOInterface $io IO interface to write to console.
+     * @return void
+     */
+    public static function createCoreLocalConfig($dir, $io)
+    {
+        $databaseConfig = $dir . '/config/core_local.php';
+        $defaultConfig = $dir . '/config/core_local.default.php';
+        if (!file_exists($databaseConfig)) {
+            copy($defaultConfig, $databaseConfig);
+            $io->write('Created `config/core_local.php` file');
         }
     }
 
