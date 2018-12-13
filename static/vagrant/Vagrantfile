@@ -3,7 +3,7 @@
 $projectFolderPath = '../code'
 
 # Mount MYSQL-DATADir
-#$dbFolderPath = '../DBstore'
+$dbFolderPath = '../DBstore'
 
 # Mount temp share
 $shareFolderPath = '../Temp'
@@ -11,17 +11,20 @@ $shareFolderPath = '../Temp'
 # Mount share logs
 #$shareLogPath = '../Logs'
 
+#SETUP VARS
+PHP_V="7.2"
+
 
 Vagrant.configure("2") do |config|
 	config.vm.synced_folder $projectFolderPath, "/var/www/cake", create: true, :mount_options => ["dmode=777", "fmode=777"]
-	#config.vm.synced_folder $dbFolderPath, "/var/lib/mysql", create: true, :mount_options => ["dmode=777", "fmode=777"]
+	config.vm.synced_folder $dbFolderPath, "/var/lib/mysql", create: true, :mount_options => ["dmode=777", "fmode=777"]
 	config.vm.synced_folder $shareFolderPath, "/tmp/share", create: true, :mount_options => ["dmode=777", "fmode=777"]
 	#config.vm.synced_folder $shareLogPath, "/var/log/payboutique", create: true, :mount_options => ["dmode=777", "fmode=777"]
 	
 	config.vm.box = "debian/contrib-jessie64"
 	config.vm.provider "virtualbox" do |v|
-    	    v.memory = 1024*4
-    	    v.cpus = 2
+    	    v.memory = 1024*1
+    	    v.cpus = 1
 			v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
 			v.name = 'Science'
 	end
@@ -33,6 +36,6 @@ Vagrant.configure("2") do |config|
 	config.vm.hostname = "science"
 	
 	config.vm.provision "file", source: "source-file", destination: "/tmp/source-file"
-	config.vm.provision "provision", type: :shell, path: "scripts/configure.sh"
-	config.vm.provision :shell, path: "scripts/bootstrap.sh", run: 'always'
+	config.vm.provision "provision", type: :shell, path: "scripts/configure.sh", :args => [PHP_V]
+	config.vm.provision :shell, path: "scripts/bootstrap.sh", run: 'always', :args => [PHP_V]
 end
