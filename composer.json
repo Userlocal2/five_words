@@ -14,7 +14,9 @@
         "jeremyharris/cakephp-lazyload": "^2.1",
         "josegonzalez/dotenv": "3.*",
         "mobiledetect/mobiledetectlib": "2.*",
-        "netresearch/jsonmapper": "^1.4"
+        "moontoast/math": "^1.1",
+        "netresearch/jsonmapper": "^1.4",
+      "ext-curl": "*"
     },
     "require-dev": {
         "cakephp/bake": "^1.1",
