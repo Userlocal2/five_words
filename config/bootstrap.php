@@ -95,7 +95,7 @@ if ('cli' == PHP_SAPI) {
 }
 elseif (!empty($host)) {
     $platform = Platforms::getPlatformByHost($host);
-    if(!empty($_REQUEST['cc'])){
+    if (!empty($_REQUEST['cc'])) {
         $platform = Platforms::getPlatformByCC($_REQUEST['cc']);
     }
 
@@ -253,3 +253,7 @@ Type::build('timestamp')
 if (Configure::read('debug')) {
     Plugin::load('DebugKit', ['bootstrap' => true]);
 }
+
+require CONFIG . 'model_config.php';
+
+Plugin::load('Currency', ['autoload' => true]);
