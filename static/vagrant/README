@@ -3,24 +3,24 @@ Then you are mast install VAGRANT-plugin vagrant-vbguest
 "vagrant plugin install vagrant-vbguest"
 Then you are mast configure the mount points in the Vagrantfile.
 Then you mast addind host name note to the hosts-fie like:
-192.168.10.10 payboutique.com.local
+192.168.20.30 science.local
 .................................................................
 --> SSH:
 user name: root
-ssh-key: vagrant_payb/source-file/key/id_rsa
-IP: 192.168.10.10
+ssh-key: source-file/key/id_rsa
+IP: 192.168.20.30
 -> OR
 user name: developer
 user password: payb
-IP: 192.168.10.10
+IP: 192.168.20.30
 -> OR
 using command - vagrant ssh
 .................................................................
 --> MySQL
 Version: 5.6
 user name: root
-password: password
-db name: payb_devdb
+password: root
+db name: science
 .................................................................
 --> PHP
 Version: 5.6
@@ -28,5 +28,5 @@ Version: 5.6
 --> NGINX
 Version: 1.6
 Ports: 80 / 443 ssl
-ServerName: payboutique.com.local
+ServerName: science.local
 .................................................................

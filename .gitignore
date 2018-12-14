@@ -7,7 +7,7 @@
 /logs/*
 /tmp/*
 /vendor/*
-composer.lock
+*.lock
 
 # OS generated files #
 ######################
