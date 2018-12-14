@@ -32,9 +32,9 @@ class CalcStatShell extends Shell
         return $parser;
     }
 
-    private $merchant_currency   = 'EUR'; // EUR
-    private $buyer_currency      = 'CZK'; // CZK
-    private $settlement_currency = 'RUB';// RUB
+    private $merchant_currency;
+    private $buyer_currency;
+    private $settlement_currency;
 
     /**
      * main() method.
@@ -45,12 +45,10 @@ class CalcStatShell extends Shell
         $this->Rates = new Rates();
 
         $type = 'Purchase';
-        $this->out('Tr->type = ' . $type);
 
-        $this->out('Tr->merchant_currency = ' . $this->merchant_currency);
-        $this->out('Tr->buyer_currency = ' . $this->buyer_currency);
-        $this->out('Tr->settlement_currency = ' . $this->settlement_currency);
-
+        $this->merchant_currency   = 'EUR'; // EUR
+        $this->buyer_currency      = 'CZK'; // CZK
+        $this->settlement_currency = 'RUB'; // RUB
 
         $_rate_amount_merchant = 0;
         $_rate_amount_buyer    = 0;
@@ -58,6 +56,13 @@ class CalcStatShell extends Shell
 
         $conversion_markup = 0.04;
         $this->__fee       = 0.00;
+
+
+        $this->out('Tr->type = ' . $type);
+
+        $this->out('Tr->merchant_currency = ' . $this->merchant_currency);
+        $this->out('Tr->buyer_currency = ' . $this->buyer_currency);
+        $this->out('Tr->settlement_currency = ' . $this->settlement_currency);
 
 
         if (!empty($_rate_amount_merchant)) {
