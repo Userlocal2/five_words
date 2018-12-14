@@ -30,7 +30,7 @@ class Trans
         $settlement .= '(' . $this->settlement_amount_merchant . ':' . $this->settlement_amount_clean . ') ';
         $str   .= $this->tablize($settlement);
         $str   .= $this->tablize($this->settlement_rate);
-        $str   .= $this->tablize($this->money);
+        $str   .= ' ' . $this->tablize($this->money);
 
         return $str;
     }

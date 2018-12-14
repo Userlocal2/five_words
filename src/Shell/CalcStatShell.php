@@ -56,6 +56,10 @@ class CalcStatShell extends Shell
         $_rate_amount_buyer    = 0;
         $_rate_settlement      = 0;
 
+        $conversion_markup = 0.04;
+        $this->__fee       = 0.00;
+
+
         if (!empty($_rate_amount_merchant)) {
             $this->out('Tr->_rate_amount_merchant = ' . $_rate_amount_merchant);
         }
@@ -69,21 +73,19 @@ class CalcStatShell extends Shell
         }
 
         $this->_rate_settlement_buyer = 1;
-        if($this->buyer_currency != $this->settlement_currency){
-            $rateDB             = $this->Rates->get($this->settlement_currency, $this->buyer_currency);
+        if ($this->buyer_currency != $this->settlement_currency) {
+            $rateDB                       = $this->Rates->get($this->settlement_currency, $this->buyer_currency);
             $this->_rate_settlement_buyer = $rateDB->rate->getValue();
         }
 
         $this->_rate_settlement_merchant = 1;
-        if($this->merchant_currency != $this->settlement_currency){
-            $rateDB             = $this->Rates->get($this->settlement_currency, $this->merchant_currency);
+        if ($this->merchant_currency != $this->settlement_currency) {
+            $rateDB                          = $this->Rates->get($this->settlement_currency, $this->merchant_currency);
             $this->_rate_settlement_merchant = (float)$rateDB->rate->getValue();
         }
 
 
-        $conversion_markup = 0.5;
         $this->out('Tr->conversion_markup = ' . $conversion_markup);
-        $this->__fee = 0.00;
         $this->out('__Fee = ' . $this->__fee);
 
 
@@ -92,7 +94,7 @@ class CalcStatShell extends Shell
 //        $this->out('                          old                        |                          new                   ');
 
         // init (in API request)
-        for ($i = 100; $i <= 100; $i += 1) {
+        for ($i = 100; $i <= 1000; $i += 50) {
             $tr       = new Trans();
             $tr->type = $type;
 
@@ -173,15 +175,24 @@ class CalcStatShell extends Shell
             }
             $tr->settlement_amount = $res;
 
-            $tr->settlement_amount_clean = round($tr->amount_buyer_currency / $this->_rate_settlement_buyer * (1 - $this->__fee), 2);
-//            $tr->settlement_amount_clean = round($tr->amount_merchant_currency / $this->_rate_settlement_merchant * (1 - $this->__fee), 2);
+            $tr->settlement_amount_clean = round(
+                $tr->amount_buyer_currency / $this->_rate_settlement_buyer * (1 - $this->__fee),
+                2
+            );
+            $tr->settlement_amount_clean = round(
+                $tr->amount_merchant_currency / $this->_rate_settlement_merchant * (1 - $this->__fee),
+                2
+            );
 
-            $tr->settlement_amount_merchant = round($tr->settlement_amount * $this->_rate_settlement_merchant * (1 - $this->__fee), 2);
+            $tr->settlement_amount_merchant = round(
+                $tr->settlement_amount * $this->_rate_settlement_merchant * (1 - $this->__fee),
+                2
+            );
         }
 
 
         // our money
-        $tr->money = abs($tr->amount_buyer_currency / $tr->_rate_amount_buyer) - abs($tr->settlement_amount * $tr->settlement_amount_merchant);
+        $tr->money = $tr->amount_buyer_currency / $tr->_rate_amount_buyer - $tr->settlement_amount_merchant;
     }
 
     public function _convert($who, Trans $tr) {
@@ -283,15 +294,24 @@ class CalcStatShell extends Shell
 
             $tr->settlement_amount = $res;
 
-            $tr->settlement_amount_clean = round($tr->amount_buyer_currency / $this->_rate_settlement_buyer * (1 - $this->__fee), 2);
-//            $tr->settlement_amount_clean = round($tr->amount_merchant_currency / $this->_rate_settlement_merchant * (1 - $this->__fee), 2);
+            $tr->settlement_amount_clean = round(
+                $tr->amount_buyer_currency / $this->_rate_settlement_buyer * (1 - $this->__fee),
+                2
+            );
+            $tr->settlement_amount_clean = round(
+                $tr->amount_merchant_currency / $this->_rate_settlement_merchant * (1 - $this->__fee),
+                2
+            );
 
-            $tr->settlement_amount_merchant = round($tr->settlement_amount * $this->_rate_settlement_merchant * (1 - $this->__fee), 2);
+            $tr->settlement_amount_merchant = round(
+                $tr->settlement_amount * $this->_rate_settlement_merchant * (1 - $this->__fee),
+                2
+            );
         }
 
 
         // our money
-        $tr->money = abs($tr->amount_buyer_currency / $tr->_rate_amount_buyer) - abs($tr->settlement_amount * $tr->settlement_amount_merchant);
+        $tr->money = $tr->amount_buyer_currency / $tr->_rate_amount_buyer - $tr->settlement_amount_merchant;
     }
 
 
