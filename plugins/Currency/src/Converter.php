@@ -3,8 +3,8 @@
 namespace Currency;
 
 
+use App\Error\ResponseApiException;
 use App\Lib\BigNumber;
-use Clearjunction\B7Library\Error\ResponseApiException;
 use Cake\I18n\FrozenDate;
 use Cake\ORM\TableRegistry;
 use Currency\Model\Entity\Rate;
@@ -29,7 +29,7 @@ class Converter
         $date = FrozenDate::now();
 
         /** @var Rate $rate */
-        $rate = TableRegistry::get('Currency.Rates')
+        $rate = TableRegistry::getTableLocator()->get('Currency.Rates')
             ->find()
             ->where(compact('source', 'base', 'target', 'date'))
             ->first();

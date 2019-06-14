@@ -13,7 +13,7 @@ class Rates
     private $CurrencyRates;
 
     public function __construct() {
-        $this->CurrencyRates = \Cake\ORM\TableRegistry::get('Currency.Rates');
+        $this->CurrencyRates = \Cake\ORM\TableRegistry::getTableLocator()->get('Currency.Rates');
     }
 
     public function get($base, $target) {
