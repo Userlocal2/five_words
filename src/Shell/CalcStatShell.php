@@ -42,6 +42,12 @@ class CalcStatShell extends Shell
      * @return bool|int|null Success or error code.
      */
     public function main() {
+        $amount_buyer_currency = 500;
+//        $cf = max(-1*(3/$amount_buyer_currency), 0.0115);
+        $cf = min(max(2/$amount_buyer_currency,0.004),(10/$amount_buyer_currency));
+
+
+
         $this->Rates = new Rates();
 
         $type = 'Purchase';
