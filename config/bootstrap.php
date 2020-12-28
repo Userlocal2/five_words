@@ -81,7 +81,6 @@ catch (\Exception $e) {
  * shared configuration.
  */
 //Configure::load('app_local', 'default');
-Configure::load('database', 'default');
 Configure::load('core_local', 'default');
 
 
@@ -102,10 +101,11 @@ elseif (!empty($host)) {
 
     define('LOGS', ROOT . DS . 'logs' . DS . $platform . DS);
 }
-Configure::write('LogDir', LOGS);
 Platforms::setPlatform($platform);
 
 $connect = ($platform === Platforms::$default) ? '' : $platform;
+Configure::load('database', 'default');
+Configure::load('logs', 'default');
 
 /*
  * When debug = true the metadata cache should only last

@@ -5,15 +5,15 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "php": ">=7.2",
+        "php": ">=7.4",
         "ext-json": "*",
-        "cakephp/cakephp": "3.7.*",
+        "cakephp/cakephp": "3.9.*",
         "cakephp/migrations": "^2.0.0",
         "cakephp/plugin-installer": "^1.0",
         "guzzlehttp/guzzle": "^6.3",
         "jeremyharris/cakephp-lazyload": "^2.1",
         "mobiledetect/mobiledetectlib": "2.*",
-        "moontoast/math": "^1.1",
+        "brick/math": "^0.9",
         "netresearch/jsonmapper": "^1.4",
         "ext-curl": "*"
     },
@@ -46,7 +46,6 @@
     "scripts": {
         "post-install-cmd": "App\\Console\\Installer::postInstall",
         "post-create-project-cmd": "App\\Console\\Installer::postInstall",
-        "post-autoload-dump": "Cake\\Composer\\Installer\\PluginInstaller::postAutoloadDump",
         "check": [
             "@test",
             "@cs-check"

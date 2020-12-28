@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-PHP_VERSION_REQUIREMENT="7.2"
+PHP_VERSION_REQUIREMENT="7.4"
 PHP_CHECK=`which php${PHP_VERSION_REQUIREMENT}`
 if [ ! -e "$PHP_CHECK" ]
 then
