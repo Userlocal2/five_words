@@ -1,0 +1,47 @@
+version: '3'
+services:
+  app:
+    image: userlocal2/sepa-arm:1.0.0
+    volumes:
+      - ./:/var/app
+    environment:
+      PHP_IDE_CONFIG: "serverName=Docker"
+    depends_on:
+      - mysql
+    networks:
+      - internal_network
+  mysql:
+    # we use the mysql base image, version 5.6.36
+    image: mysql:8
+    ports:
+      - 3300:3306
+    # setting some envvars to create the DB
+    environment:
+      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_DATABASE: "science"
+      MYSQL_USER: "vagrant"
+      MYSQL_PASSWORD: "vagrant"
+    volumes:
+      - ./docker/mysql:/docker-entrypoint-initdb.d
+    networks:
+      - internal_network
+  web:
+    image: nginx:1.23.1
+    hostname: sience.local
+    working_dir: /srv/app/
+    environment:
+      TERM: Linux
+    volumes:
+      - ./:/var/app
+      - ./docker/nginx/include:/etc/nginx/include
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "8080:80"
+    networks:
+      - internal_network
+networks:
+  internal_network:
+    driver: bridge
+    ipam:
+      driver: default
