@@ -102,8 +102,7 @@ class FiveWordsCommand extends Command
         }
         unset($double, $needle, $words_double);
 
-        $this->words_indexes  = array_keys($this->words_5);
-        $this->words_indexesF = array_flip($this->words_indexes);
+        $this->words_indexes = array_keys($this->words_5);
 
 
         $word1_indexes = $this->getTwoMinMerge($this->library);
@@ -116,7 +115,7 @@ class FiveWordsCommand extends Command
         $this->progress->init(
             [
                 'total' => count($word1_indexes),
-                //'width' => 100,
+                'width' => 80,
             ]
         );
         $this->progress->tick(0);
@@ -124,6 +123,13 @@ class FiveWordsCommand extends Command
         $this->words_count = 5;
 
         $this->findWords($this->words_count, $word1_indexes);
+        $this->progress->end();
+
+        //ksort($this->result);
+
+        if ($this->result) {
+            file_put_contents(TMP . 'result_five_words.txt', implode(PHP_EOL, array_keys($this->result)));
+        }
 
         echo PHP_EOL;
         $io->out($io->nl());
@@ -146,12 +152,14 @@ class FiveWordsCommand extends Command
         }
 
         $w   = 0;
-        $end = end($word_indexes);
+        $end = count($word_indexes);
         do {
             $word_index = $word_indexes[$w++];
-            $word       = $this->words_5[$word_index];
 
-            $next_word          = array_merge($prev_word, $word);
+            $word = $this->words_5[$word_index];
+
+            $next_word = array_merge($prev_word, $word);
+
             $this->path[$count] = $word_index;
 
             if (1 === $count) {
@@ -159,7 +167,7 @@ class FiveWordsCommand extends Command
                 continue;
             }
 
-            $this->saveProcessed($next_word, array_values($this->path));
+            //$this->saveProcessed($next_word, array_values($this->path));
 
             $word_indexes_next = $this->getNextWordsIndexes($next_word);
             $word_indexes_next = $this->cleanProcessed($next_word, $word_indexes_next);
@@ -171,18 +179,18 @@ class FiveWordsCommand extends Command
                 $this->progress->tick();
             }
         }
-        while ($word_index !== $end);
+        while ($w !== $end);
 
         unset($this->path[$count]);
     }
 
 
     private function getNextWordsIndexes(array $word): array {
-        $chek = $word;
-        sort($chek);
-        $chek = implode('', $chek);
-        if (array_key_exists($chek, $this->uniq['nextWord'])) {
-            return $this->uniq['nextWord'][$chek];
+        $check = $word;
+        sort($check);
+        $check = implode('', $check);
+        if (array_key_exists($check, $this->uniq['nextWord'])) {
+            return $this->uniq['nextWord'][$check];
         }
 
         $del = [];
@@ -195,11 +203,11 @@ class FiveWordsCommand extends Command
         }
         while ($l !== $end);
 
-        $last_indexes = array_diff_key($this->words_indexesF, $del);
+        $last_indexes = array_diff_key($this->words_indexes, $del);
 
-        $this->uniq['nextWord'][$chek] = array_keys($last_indexes);
+        $this->uniq['nextWord'][$check] = array_keys($last_indexes);
 
-        return $this->uniq['nextWord'][$chek];
+        return $this->uniq['nextWord'][$check];
     }
 
     private function saveProcessed(array $word, array $indexes) {
@@ -217,14 +225,14 @@ class FiveWordsCommand extends Command
     }
 
     private function cleanProcessed(array $wordsLetters, array $indexes): array {
-        sort($wordsLetters);
-        $wordsLetters = implode('', $wordsLetters);
+        //sort($wordsLetters);
+        //$wordsLetters = implode('', $wordsLetters);
 
         if ($indexes) {
-            if (!empty($this->uniq[$wordsLetters])) {
-                $indexes = array_flip($indexes);
-                $indexes = array_keys(array_diff_key($indexes, $this->uniq[$wordsLetters]));
-            }
+            //if (!empty($this->uniq[$wordsLetters])) {
+                //$indexes = array_flip($indexes);
+                //$indexes = array_keys(array_diff_key($indexes, $this->uniq[$wordsLetters]));
+            //}
 
             $library = $this->getLibrary($indexes);
             $indexes = $this->getTwoMinMerge($library);

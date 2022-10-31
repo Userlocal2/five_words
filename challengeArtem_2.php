@@ -1,7 +1,7 @@
 <?php
 ini_set('memory_limit', '7000M');
 
-const EXP_DIR = './2';
+const EXP_DIR = './tmp';
 const LOG = EXP_DIR . '/log.log';
 const RESULT_FILE = EXP_DIR . '/result.txt';
 const LENGTH_WORDS = 5;
@@ -205,7 +205,7 @@ class main
     private function initData()
     {
         $startTime = time();
-        if ($handle = fopen("./tmp/words_alpha.txt", "r")) {
+        if ($handle = fopen("./resources/words_alpha.txt", "r")) {
             while (($line = fgets($handle)) !== false) {
                 stat::$processedLineFromFile++;
                 $line = trim($line);

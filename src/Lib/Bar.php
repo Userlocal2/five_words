@@ -161,7 +161,7 @@ class Bar
         $this->format = $format;
 
         // Initialise the display
-        //$this->io->out(self::HIDE_CURSOR);
+        $this->io->out(self::HIDE_CURSOR);
 //        fwrite($this->stream, self::MOVE_START);
 
         // Set the start time
@@ -191,12 +191,7 @@ class Bar
         $drawElapse    = microtime(true) - $this->timeSinceLastCall;
 
         if ($drawElapse > $this->throttle) {
-            $this->elapsed = microtime(true) - $this->startTime;
-            $this->percent = $this->current / $this->total * 100;
-
-            $this->rate = $this->current / $this->elapsed;
-            $this->eta  = ($this->current) ? ($this->elapsed / $this->current * $this->total - $this->elapsed) : false;
-
+            $this->calc();
             $this->drawBar();
         }
     }
@@ -211,6 +206,14 @@ class Bar
         $this->io->out();
         $this->io->out($message);
         $this->drawBar();
+    }
+
+    private function calc() {
+        $this->elapsed = microtime(true) - $this->startTime;
+        $this->percent = $this->current / $this->total * 100;
+
+        $this->rate = $this->current / $this->elapsed;
+        $this->eta  = ($this->current) ? ($this->elapsed / $this->current * $this->total - $this->elapsed) : false;
     }
 
     /**
@@ -255,11 +258,10 @@ class Bar
      * Cleanup
      */
     public function end(): void {
-        $this->io->out(PHP_EOL . self::SHOW_CURSOR);
-    }
+        $this->calc();
+        $this->drawBar();
 
-    public function __destruct() {
-        //$this->end();
+        $this->io->out(PHP_EOL . self::SHOW_CURSOR);
     }
 
 }

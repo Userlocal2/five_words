@@ -14,8 +14,16 @@ RUN apt-get update && apt-get install -y \
       libonig-dev \
     && rm -r /var/lib/apt/lists/* \
     && pecl install xdebug \
-    && pecl install pkcs11 \
     && docker-php-ext-enable xdebug \
+    && echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.output_dir=/var/app" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && pecl install pkcs11 \
+    && docker-php-ext-enable pkcs11 \
+    && apt-get update && apt-get -y install libxml2-dev libgpgme11-dev \
+    && pecl install gnupg \
+    && docker-php-ext-enable gnupg \
     && docker-php-ext-configure pdo_mysql --with-pdo-mysql=mysqlnd \
     && docker-php-ext-install \
       intl \
@@ -25,12 +33,14 @@ RUN apt-get update && apt-get install -y \
       pdo_pgsql \
       zip \
       bcmath \
-      opcache
+      opcache \
+      soap
 
-ADD ./php.ini /usr/local/etc/php/php.ini
+ADD ./php-cli/php.ini /usr/local/etc/php/php.ini
 
 RUN wget https://getcomposer.org/installer -O - -q \
-    | php -- --install-dir=/bin --filename=composer --quiet
+    | php -- --install-dir=/bin --filename=composer --quiet \
+    apt-get update && apt-get install -y nano
 
 WORKDIR /var/app
 #
