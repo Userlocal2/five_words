@@ -39,13 +39,17 @@ class FiveWordsCommand extends Command
      * @return null|void|int The exit code or null for success
      */
     public function execute(Arguments $args, ConsoleIo $io) {
-//        ini_set('memory_limit', -1);
+        ini_set('memory_limit', -1);
 
         $this->io = $io;
         $io->out('START');
+        $this->result = [];
+        $this->uniq   = [
+            'nextWord' => [],
+        ];
 
 
-        $path     = TMP . 'words_alpha.txt';
+        $path     = RESOURCES . 'words_alpha.txt';
         $wordsAll = file($path, FILE_IGNORE_NEW_LINES);
 
         $start = Chronos::now();
@@ -98,22 +102,21 @@ class FiveWordsCommand extends Command
         }
         unset($double, $needle, $words_double);
 
-        $loadTime = microtime(true) - $loadTime;
-        $io->success('Load time ' . $loadTime * 1000);
-        unset($loadTime);
-
-        $this->words_indexes = array_keys($this->words_5);
+        $this->words_indexes  = array_keys($this->words_5);
+        $this->words_indexesF = array_flip($this->words_indexes);
 
 
         $word1_indexes = $this->getTwoMinMerge($this->library);
-//        $word1_indexes = $this->getTwoMaxMerge($this->libraryR);
 
+        $loadTime = microtime(true) - $loadTime;
+        $io->success('Load time ' . $loadTime * 1000 . ' ms');
+        unset($loadTime);
 
         $this->progress = new Bar($io);
         $this->progress->init(
             [
                 'total' => count($word1_indexes),
-                'width' => 100,
+                //'width' => 100,
             ]
         );
         $this->progress->tick(0);
@@ -121,7 +124,6 @@ class FiveWordsCommand extends Command
         $this->words_count = 5;
 
         $this->findWords($this->words_count, $word1_indexes);
-//        $this->findStrait($word1_indexes);
 
         echo PHP_EOL;
         $io->out($io->nl());
@@ -132,142 +134,72 @@ class FiveWordsCommand extends Command
         $io->out('Time passed: ~' . $end->diffForHumans($start) . ' start');
 
         $io->success('Count found: ' . count($this->result));
+        $io->success('Max Used Memory: ' . round(memory_get_peak_usage() / 1024 / 1024) . 'Mb');
 
         return self::CODE_SUCCESS;
     }
 
 
     private function findWords(int $count, array $word_indexes = [], array $prev_word = []) {
-        $w = 0;
+        if (0 == $count || !$word_indexes || $count > count($word_indexes)) {
+            return;
+        }
+
+        $w   = 0;
+        $end = end($word_indexes);
         do {
             $word_index = $word_indexes[$w++];
             $word       = $this->words_5[$word_index];
 
-            $all_word           = array_merge($prev_word, $word);
+            $next_word          = array_merge($prev_word, $word);
             $this->path[$count] = $word_index;
 
             if (1 === $count) {
-                $this->saveResults($all_word);
+                $this->saveResults($next_word);
                 continue;
             }
 
-            $this->saveProcessed($all_word, array_values($this->path));
+            $this->saveProcessed($next_word, array_values($this->path));
 
-            $word_indexes_next = $this->getIndexes($all_word, $this->words_indexes);
-            $word_indexes_next = $this->cleanProcessed($all_word, $word_indexes_next);
+            $word_indexes_next = $this->getNextWordsIndexes($next_word);
+            $word_indexes_next = $this->cleanProcessed($next_word, $word_indexes_next);
 
-            if (1 !== $count && !empty($word_indexes_next)) {
-                $this->findWords($count - 1, $word_indexes_next, $all_word);
-            }
+            $this->findWords($count - 1, $word_indexes_next, $next_word);
 
             // beauty
             if ($this->words_count == $count) {
                 $this->progress->tick();
             }
         }
-        while ($word_index !== end($word_indexes));
+        while ($word_index !== $end);
 
         unset($this->path[$count]);
     }
 
-    private function findStrait(array $word1_indexes) {
 
-        $w1 = 0;
-        do {
-            $word1_index = $word1_indexes[$w1++];
-
-            $word1     = $this->words_5[$word1_index];
-            $all_word1 = $word1;
-
-            $word2_indexes = $this->getIndexes($all_word1, $this->words_indexes);
-            $word2_indexes = $this->cleanProcessed($all_word1, $word2_indexes);
-
-            $w2 = 0;
-
-            do {
-                /** WORD 2 **/
-                $word2_index = $word2_indexes[$w2++];
-
-                $word2     = $this->words_5[$word2_index];
-                $all_word2 = array_merge($all_word1, $word2);
-                $this->saveProcessed($all_word2, [$word1_index, $word2_index]);
-
-                $word3_indexes = $this->getIndexes($all_word2, $this->words_indexes);
-                $word3_indexes = $this->cleanProcessed($all_word2, $word3_indexes);
-
-                if (!empty($word3_indexes)) {
-
-
-                    $w3 = 0;
-                    do {
-                        /** WORD 3 **/
-                        $word3_index = $word3_indexes[$w3++];
-                        $word3       = $this->words_5[$word3_index];
-                        $all_word3   = array_merge($all_word2, $word3);
-                        $this->saveProcessed($all_word3, [$word1_index, $word2_index, $word3_index]);
-
-                        $word4_indexes = $this->getIndexes($all_word3, $this->words_indexes);
-                        $word4_indexes = $this->cleanProcessed($all_word3, $word4_indexes);
-
-                        if (!empty($word4_indexes)) {
-
-                            $w4 = 0;
-                            do {
-                                $word4_index = $word4_indexes[$w4++];
-                                /** WORD 4 **/
-                                $word4     = $this->words_5[$word4_index];
-                                $all_word4 = array_merge($all_word3, $word4);
-                                $this->saveProcessed($all_word4, [
-                                    $word1_index,
-                                    $word2_index,
-                                    $word3_index,
-                                    $word4_index,
-                                ]);
-
-                                $word5_indexes = $this->getIndexes($all_word4, $this->words_indexes);
-                                $word5_indexes = $this->cleanProcessed($all_word4, $word5_indexes);
-
-                                foreach ($word5_indexes as $word5_index) {
-                                    /** WORD 5 **/
-                                    $word5     = $this->words_5[$word5_index];
-                                    $all_words = array_merge($all_word4, $word5);
-
-                                    if (25 !== count(array_flip($all_words))) {
-                                        echo 'Wrong algo ';
-                                    }
-
-                                    $this->saveResults($all_words);
-                                }
-
-                            }
-                            while ($word4_index !== end($word4_indexes));
-                        }
-                    }
-                    while ($word3_index !== end($word3_indexes));
-                }
-            }
-            while ($word2_index !== end($word2_indexes));
-            // beauty
-            //$progress->increment()->draw();
-            $this->progress->tick();
+    private function getNextWordsIndexes(array $word): array {
+        $chek = $word;
+        sort($chek);
+        $chek = implode('', $chek);
+        if (array_key_exists($chek, $this->uniq['nextWord'])) {
+            return $this->uniq['nextWord'][$chek];
         }
-        while ($word1_index !== end($word1_indexes));
-    }
 
-
-    private function getIndexes(array $word, array $prev_indexes): array {
         $del = [];
 
-        $l = 0;
+        $l   = 0;
+        $end = count($word);
         do {
             $letter = $word[$l++];
             $del    += $this->library[$letter];
         }
-        while ($letter !== end($word));
+        while ($l !== $end);
 
-        $last_indexes = array_diff_key(array_flip($prev_indexes), $del);
+        $last_indexes = array_diff_key($this->words_indexesF, $del);
 
-        return array_keys($last_indexes);
+        $this->uniq['nextWord'][$chek] = array_keys($last_indexes);
+
+        return $this->uniq['nextWord'][$chek];
     }
 
     private function saveProcessed(array $word, array $indexes) {
@@ -397,10 +329,10 @@ class FiveWordsCommand extends Command
         return $library;
     }
 
-
     private function getTwoMinMerge(array $library): array {
         usort($library, function ($a, $b) { return count($a) - count($b); });
 
-        return array_keys(array_flip($library[0]) + array_flip($library[1]));
+//        return array_keys(array_flip($library[0]) + array_flip($library[1]));
+        return array_keys(array_flip(array_merge($library[0], $library[1])));
     }
 }

@@ -150,7 +150,7 @@ class Bar
         $format = $options['format'];
 
         // Get the terminal width
-        $width = $options['width'] ?? exec('tput cols 2>/dev/null');
+        $width = $options['width'] ?: exec('tput cols 2>/dev/null');
         if (!is_numeric($width) || 200 < $width) {
             // Default to 80 columns, mainly for windows users with no tput
             $width = 80;
@@ -168,6 +168,7 @@ class Bar
         $this->startTime         = microtime(true);
         $this->timeSinceLastCall = microtime(true);
 
+        $this->io->out('', 0);
         $this->drawBar();
     }
 
