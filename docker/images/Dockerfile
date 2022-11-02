@@ -40,7 +40,7 @@ ADD ./php-cli/php.ini /usr/local/etc/php/php.ini
 
 RUN wget https://getcomposer.org/installer -O - -q \
     | php -- --install-dir=/bin --filename=composer --quiet \
-    apt-get update && apt-get install -y nano
+    apt-get update && apt-get install -y nano htop
 
 WORKDIR /var/app
 #
