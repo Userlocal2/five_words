@@ -11,7 +11,7 @@ use Cake\Console\ConsoleIo;
 /**
  * FiveWords command.
  */
-class FiveWordsFastCommand extends Command
+class FiveWordsOldCommand extends Command
 {
     private ConsoleIo $io;
 

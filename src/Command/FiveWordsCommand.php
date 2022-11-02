@@ -19,12 +19,12 @@ class FiveWordsCommand extends Command
 
     private array $double;
     private array $library;
+    private array $libraryWord;
     private array $words_indexes;
 
     private Bar $progress;
 
     private int   $words_count;
-    private array $path;
     private array $uniq;
 
     private array $result;
@@ -44,7 +44,7 @@ class FiveWordsCommand extends Command
 
         $totalTime = microtime(true);
 
-        $this->io = $io;
+        $this->io     = $io;
         $this->result = [];
         $this->uniq   = [
             'nextWord' => [],
@@ -96,6 +96,22 @@ class FiveWordsCommand extends Command
 
         $this->words_indexes = array_keys($this->words_5);
         $this->library       = $this->getLibrary($this->words_indexes);
+
+        foreach ($this->words_5 as $i => $word) {
+            $sWord = implode('', $word);
+
+            $del = [];
+
+            $l   = 0;
+            $end = count($word);
+            do {
+                $letter = $word[$l++];
+                $del    += $this->library[$letter];
+            }
+            while ($l != $end);
+
+            $this->libraryWord[$sWord] = array_diff_key($this->words_indexes, $del);
+        }
 
 
         $word1_indexes = $this->getTwoMinMerge($this->library);
@@ -180,19 +196,27 @@ class FiveWordsCommand extends Command
             return $this->uniq['nextWord'][$check];
         }
 
-        $del = [];
+        $aWords = str_split(implode('', $word), 5);
 
-        $l   = 0;
-        $end = count($word);
-        do {
-            $letter = $word[$l++];
-            $del    += $this->library[$letter];
+        $res = $this->libraryWord[$aWords[0]];
+
+        if (!empty($aWords[1])) {
+            $res = array_intersect_key($res, $this->libraryWord[$aWords[1]]);
         }
-        while ($l != $end);
 
-        $last_indexes = array_diff_key($this->words_indexes, $del);
+        if (!empty($aWords[2])) {
+            $res = array_intersect_key($res, $this->libraryWord[$aWords[2]]);
+        }
 
-        $this->uniq['nextWord'][$check] = array_keys($last_indexes);
+        if (!empty($aWords[3])) {
+            $res = array_intersect_key($res, $this->libraryWord[$aWords[3]]);
+        }
+
+        if (!empty($aWords[4])) {
+            $res = array_intersect_key($res, $this->libraryWord[$aWords[4]]);
+        }
+
+        $this->uniq['nextWord'][$check] = array_keys($res);
 
         return $this->uniq['nextWord'][$check];
     }
