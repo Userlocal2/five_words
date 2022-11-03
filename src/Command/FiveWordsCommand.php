@@ -50,9 +50,13 @@ class FiveWordsCommand extends Command
             'nextWord' => [],
         ];
 
+        $loadTime = microtime(true);
+
 
         $path     = RESOURCES . 'words_alpha.txt';
         $wordsAll = file($path, FILE_IGNORE_NEW_LINES);
+
+        $io->success('Load File time ' . (microtime(true) - $loadTime) * 1000 . ' ms');
 
 //        $testResult  = ['dwarf', 'glyph', 'jocks', 'muntz', 'vibex'];
 //        $testResult  = ['ambry', 'fldxt', 'spung', 'vejoz', 'whick'];
@@ -117,7 +121,7 @@ class FiveWordsCommand extends Command
         $word1_indexes = $this->getTwoMinMerge($this->library);
 
         $loadTime = microtime(true) - $loadTime;
-        $io->success('Load time ' . $loadTime * 1000 . ' ms');
+        $io->success('Prepare time ' . $loadTime * 1000 . ' ms');
         unset($loadTime);
 
         $this->progress = new Bar($io);
@@ -146,6 +150,8 @@ class FiveWordsCommand extends Command
 
         $io->success('Count found: ' . count($this->result));
         $io->success('Max Used Memory: ' . round(memory_get_peak_usage() / 1024 / 1024) . 'Mb');
+
+        $io->out('Result file: ' . TMP . 'result_five_words.txt');
 
         return self::CODE_SUCCESS;
     }
