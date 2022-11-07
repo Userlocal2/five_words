@@ -26,6 +26,7 @@ class FiveWordsCommand extends Command
 
     private int   $words_count;
     private array $uniq;
+    private array $word_processing;
 
     private array $result;
 
@@ -43,11 +44,14 @@ class FiveWordsCommand extends Command
         $io->out('START');
 
         $totalTime = microtime(true);
+        [$ms, $s] = explode(' ', microtime());
+        $startMicroTime = $s * 1000 + round($ms * 1000);
+
 
         $this->io     = $io;
         $this->result = [];
         $this->uniq   = [
-            'nextWord' => [],
+            'processed' => [],
         ];
 
         $loadTime = microtime(true);
@@ -101,23 +105,6 @@ class FiveWordsCommand extends Command
         $this->words_indexes = array_keys($this->words_5);
         $this->library       = $this->getLibrary($this->words_indexes);
 
-        foreach ($this->words_5 as $i => $word) {
-            $sWord = implode('', $word);
-
-            $del = [];
-
-            $l   = 0;
-            $end = count($word);
-            do {
-                $letter = $word[$l++];
-                $del    += $this->library[$letter];
-            }
-            while ($l != $end);
-
-            $this->libraryWord[$sWord] = array_diff_key($this->words_indexes, $del);
-        }
-
-
         $word1_indexes = $this->getTwoMinMerge($this->library);
 
         $loadTime = microtime(true) - $loadTime;
@@ -138,15 +125,18 @@ class FiveWordsCommand extends Command
         $this->findWords($this->words_count, $word1_indexes);
         $this->progress->end();
 
-        //ksort($this->result);
+        $totalTime = microtime(true) - $totalTime;
+        [$ms, $s] = explode(' ', microtime());
+        $endMicroTime = $s * 1000 + round($ms * 1000);
 
         if ($this->result) {
+            ksort($this->result);
             file_put_contents(TMP . 'result_five_words.txt', implode(PHP_EOL, array_keys($this->result)));
         }
-        $totalTime = microtime(true) - $totalTime;
 
         $io->success('DONE');
-        $io->out('Total time: ' . round($totalTime * 1000) . ' s');
+        $io->out('Total time: ' . round($totalTime * 1000) . ' ms');
+        $io->out('Total time: ' . ($endMicroTime - $startMicroTime) . ' ms');
 
         $io->success('Count found: ' . count($this->result));
         $io->success('Max Used Memory: ' . round(memory_get_peak_usage() / 1024 / 1024) . 'Mb');
@@ -176,12 +166,18 @@ class FiveWordsCommand extends Command
                 continue;
             }
 
+            $this->word_processing[$words_count] = implode('', $word);
+
+            if ($this->isProcessed()) {
+                continue;
+            }
+
             $word_indexes_next = $this->getNextWordsIndexes($next_word);
             if (!$word_indexes_next || ($words_count - 1) > count($word_indexes_next)) {
                 continue;
             }
 
-            $word_indexes_next = $this->cleanProcessed($word_indexes_next);
+            $word_indexes_next = $this->prepareMin($word_indexes_next);
 
             $this->findWords($words_count - 1, $word_indexes_next, $next_word);
 
@@ -191,6 +187,8 @@ class FiveWordsCommand extends Command
             }
         }
         while ($w != $end);
+
+        unset($this->word_processing[$words_count]);
     }
 
 
@@ -198,42 +196,71 @@ class FiveWordsCommand extends Command
         $check = $word;
         sort($check);
         $check = implode('', $check);
-        if (array_key_exists($check, $this->uniq['nextWord'])) {
-            return $this->uniq['nextWord'][$check];
+        if (array_key_exists($check, $this->uniq)) {
+            return $this->uniq[$check];
         }
 
         $aWords = str_split(implode('', $word), 5);
 
-        $res = $this->libraryWord[$aWords[0]];
+        $res = $this->getWordIndexes($aWords[0]);
 
         if (!empty($aWords[1])) {
-            $res = array_intersect_key($res, $this->libraryWord[$aWords[1]]);
+            $res = array_intersect_key($res, $this->getWordIndexes($aWords[1]));
         }
 
         if (!empty($aWords[2])) {
-            $res = array_intersect_key($res, $this->libraryWord[$aWords[2]]);
+            $res = array_intersect_key($res, $this->getWordIndexes($aWords[2]));
         }
 
         if (!empty($aWords[3])) {
-            $res = array_intersect_key($res, $this->libraryWord[$aWords[3]]);
+            $res = array_intersect_key($res, $this->getWordIndexes($aWords[3]));
         }
 
         if (!empty($aWords[4])) {
-            $res = array_intersect_key($res, $this->libraryWord[$aWords[4]]);
+            $res = array_intersect_key($res, $this->getWordIndexes($aWords[4]));
         }
 
-        $this->uniq['nextWord'][$check] = array_keys($res);
+        $this->uniq[$check] = array_keys($res);
 
-        return $this->uniq['nextWord'][$check];
+        return $this->uniq[$check];
     }
 
-    private function cleanProcessed(array $indexes): array {
+    private function getWordIndexes(string $sWord) {
+        if (empty($this->libraryWord[$sWord])) {
+            $word = str_split($sWord);
+            $del  = [];
+
+            $del += $this->library[$word[0]];
+            $del += $this->library[$word[1]];
+            $del += $this->library[$word[2]];
+            $del += $this->library[$word[3]];
+            $del += $this->library[$word[4]];
+
+            $this->libraryWord[$sWord] = array_diff_key($this->words_indexes, $del);
+        }
+
+        return $this->libraryWord[$sWord];
+    }
+
+    private function prepareMin(array $indexes): array {
         if ($indexes) {
             $library = $this->getLibrary($indexes);
             $indexes = $this->getTwoMinMerge($library);
         }
 
         return $indexes;
+    }
+
+    private function isProcessed(): bool {
+        $a = $this->word_processing;
+        sort($a);
+        $key = implode('', $a);
+        if (array_key_exists($key, $this->uniq['processed'])) {
+            return true;
+        }
+        $this->uniq['processed'][$key] = null;
+
+        return false;
     }
 
     private function saveResults(array $aWords): void {
