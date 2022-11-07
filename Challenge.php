@@ -9,20 +9,6 @@ final class Challenge
     static $debugCntr         = 0;
     static $emptyCharCounters = [];
 
-    static $wordsCountsForLayer = [
-        1 => 4,
-        2 => 3,
-        3 => 2,
-        4 => 1,
-    ];
-
-    static $charsCountsForLayer = [
-        1 => 20,
-        2 => 15,
-        3 => 10,
-        4 => 5,
-    ];
-
     static $words          = [];
     static $CHARS_MAP      = [
         'a' => 0,
@@ -61,7 +47,7 @@ final class Challenge
     static $synonymsCount = 0;
 
     public function __construct() {
-//        ini_set('memory_limit', '4300M');
+        ini_set('memory_limit', '4300M');
         $cntr = 0;
         foreach (Challenge::$CHARS_MAP as $char => $number) {
             $cntr++;
@@ -109,7 +95,8 @@ final class Challenge
                 Challenge::$synonyms[$uniqueCharsLine][] = $line;
             }
 
-        } while (++$l < $fileLength);
+        }
+        while (++$l < $fileLength);
 
         $countLines = Challenge::$synonymsCount;
         foreach (Challenge::$charCounters as $charIdx => $weight) {
@@ -130,7 +117,8 @@ final class Challenge
 
             $newIdx                          = implode('.', array_keys($chars));
             Challenge::$newSynonyms[$newIdx] = Challenge::$synonyms[$line[0]];
-        } while (++$i < $countLines);
+        }
+        while (++$i < $countLines);
 
         Challenge::$synonyms = [];
 
@@ -153,22 +141,25 @@ final class Challenge
                 $xx[$char] = true;
             }
             $cleanArray[] = $xx;
-        } while (++$id < $countLines);
+        }
+        while (++$id < $countLines);
 
         Challenge::$words = $cleanArray;
     }
 
     public function main($filePath = 'words_alpha.txt') {
-        $startTime = microtime(true);
+        [$ms, $s] = explode(' ', microtime());
+        $startMicroTime = $s * 1000 + round($ms * 1000);
+
         $this->initWords($filePath);
-        Challenge::out('[file preparing]: ' . ((microtime(true) - $startTime) * 1000) . ' ms');
 
         $result = fillV2(Challenge::$words, Challenge::$synonymsCount, 0, Challenge::$charCounters);
 
-        $synonyms = &Challenge::$newSynonyms;
+        [$ms, $s] = explode(' ', microtime());
+        $endMicroTime = $s * 1000 + round($ms * 1000);
 
-        $startPrint = microtime(true);
-        $combCnt    = 0;
+        $synonyms = &Challenge::$newSynonyms;
+        $combCnt  = 0;
         foreach ($result as $word1 => $words2) {
             foreach ($words2 as $word2 => $words3) {
                 foreach ($words3 as $word3 => $words4) {
@@ -186,13 +177,15 @@ final class Challenge
                 }
             }
         }
-        Challenge::out('=======');
-
-        Challenge::out('[printing results]: ' . ((microtime(true) - $startPrint) * 1000) . ' ms');
-
 
         Challenge::out('=======');
-        Challenge::out('[full process]: ' . ((microtime(true) - $startTime) * 1000) . ' ms');
+
+//        Challenge::out('[printing results]: ' . ((microtime(true) - $startPrint) * 1000) . ' ms');
+
+
+        Challenge::out('=======');
+//        Challenge::out('[full process]: ' . ((microtime(true) - $startTime) * 1000) . ' ms');
+        Challenge::out('[full process]: ' . ($endMicroTime - $startMicroTime) . ' ms');
 
         Challenge::out('[Combinations]: ' . $combCnt);
 //        Challenge::out('DebugCntr  : ' . Challenge::$debugCntr);
@@ -218,28 +211,23 @@ final class Challenge
     }
 }
 
-function fillV2(array $words, int $wordsLength, int $depth, array $charCounters): array {
+
+function fillV2(array &$words, int $wordsLength, int $depth, array $charCounters): array {
     $depth++;
 
-    $i              = 0;
-    $result         = [];
-    $mainLoopLength = $wordsLength - 1;
-
+    $result             = [];
     $finishedCharsCount = 0;
-
-    $emptyCharCounters = &Challenge::$emptyCharCounters;
+    $emptyCharCounters  = &Challenge::$emptyCharCounters;
 
     $neededCountForLayer            = 5 - $depth;
-//    $neededCountForLayer            = Challenge::$wordsCountsForLayer[$depth];
     $neededLengthOfVectorLayerCheck = $neededCountForLayer * 5;
-//    $neededLengthOfVectorLayerCheck = Challenge::$charsCountsForLayer[$depth];
 
-    do {//418027
+    for ($i = 0; $i < $wordsLength; $i++) {
         if (1 < $finishedCharsCount) {
             return $result;
         }
-
         $word = $words[$i];
+        unset($words[$i]);
 
         $keys = [];
         foreach ($word as $key => $isset) {
@@ -253,16 +241,12 @@ function fillV2(array $words, int $wordsLength, int $depth, array $charCounters)
 
         $firstLayerWordIdx = \implode('.', $keys);
 
-        $k = $i + 1;
-
         $secondLayerWords      = [];
         $nextLayerCharCounters = $emptyCharCounters;
 
         $nextLayerUniqueCharsCount = 0;
 
-        do {// 92 800 968
-            $secondLayerWord = $words[$k];
-
+        foreach ($words as $secondLayerWord) {
             if (
                 false === (isset($secondLayerWord[$l5])
                     || isset($secondLayerWord[$l4])
@@ -273,13 +257,14 @@ function fillV2(array $words, int $wordsLength, int $depth, array $charCounters)
 
                 $secondLayerWords[] = $secondLayerWord;
 
-                foreach ($secondLayerWord as $charIdx => $isset) {
+                foreach ($secondLayerWord as $charIdx => $is) {
                     if (1 > $nextLayerCharCounters[$charIdx]++) {
                         ++$nextLayerUniqueCharsCount;
                     }
                 }
             }
-        } while (++$k < $wordsLength);
+        }
+
         if ($nextLayerUniqueCharsCount < $neededLengthOfVectorLayerCheck) {
             continue;
         }
@@ -289,19 +274,18 @@ function fillV2(array $words, int $wordsLength, int $depth, array $charCounters)
             continue;
         }
 
-        if ($depth > 3) {
-            $finalLayerRes = [];
-            foreach ($secondLayerWords as $secondLayerWord) {
-                $finalLayerRes[] = \implode('.', \array_keys($secondLayerWord));
-            }
-            $result[$firstLayerWordIdx] = $finalLayerRes;
+        if ($depth < 4) {
+            $result[$firstLayerWordIdx] = fillV2($secondLayerWords, $nextLayerCount, $depth, $nextLayerCharCounters);
 
             continue;
         }
 
-        $result[$firstLayerWordIdx] = fillV2($secondLayerWords, $nextLayerCount, $depth, $nextLayerCharCounters);
-
-    } while (++$i < $mainLoopLength);
+        $finalLayerRes = [];
+        foreach ($secondLayerWords as $secondLayerWord) {
+            $finalLayerRes[] = \implode('.', \array_keys($secondLayerWord));
+        }
+        $result[$firstLayerWordIdx] = $finalLayerRes;
+    }
 
     return $result;
 }

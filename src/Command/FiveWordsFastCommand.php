@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Lib\Bar;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
@@ -11,7 +10,7 @@ use Cake\Console\ConsoleIo;
 /**
  * FiveWords command.
  */
-class FiveWordsCommand extends Command
+class FiveWordsFastCommand extends Command
 {
     private ConsoleIo $io;
 
@@ -20,11 +19,7 @@ class FiveWordsCommand extends Command
     private array $double;
     private array $library;
     private array $libraryWord;
-    private array $words_indexes;
 
-    private Bar $progress;
-
-    private int   $words_count;
     private array $uniq;
     private array $word_processing;
 
@@ -56,17 +51,13 @@ class FiveWordsCommand extends Command
 
         $this->libraryWord = [];
 
-        $loadTime = microtime(true);
 
+        $loadTime = microtime(true);
 
         $path     = RESOURCES . 'words_alpha.txt';
         $wordsAll = file($path, FILE_IGNORE_NEW_LINES);
 
         $io->success('Load File time ' . (microtime(true) - $loadTime) * 1000 . ' ms');
-
-//        $testResult  = ['dwarf', 'glyph', 'jocks', 'muntz', 'vibex'];
-//        $testResult  = ['ambry', 'fldxt', 'spung', 'vejoz', 'whick'];
-//        $this->check = [];
 
         $double = [];
 
@@ -104,8 +95,7 @@ class FiveWordsCommand extends Command
         unset($double, $needle, $words_double);
 
 
-        $this->words_indexes = array_keys($this->words_5);
-        $this->library       = $this->getLibrary($this->words_indexes);
+        $this->library = $this->getLibrary($this->words_5);
 
         $word1_indexes = $this->getTwoMinMerge($this->library);
 
@@ -113,26 +103,14 @@ class FiveWordsCommand extends Command
         $io->success('Prepare time ' . $loadTime * 1000 . ' ms');
         unset($loadTime);
 
-        $this->progress = new Bar($io);
-        $this->progress->init(
-            [
-                'total' => count($word1_indexes),
-                'width' => 80,
-            ]
-        );
-        $this->progress->tick(0);
-
-        $this->words_count = 5;
-
-        $this->findWords($this->words_count, $word1_indexes);
-        $this->progress->end();
+        $this->findWords(5, $word1_indexes);
 
         $totalTime = microtime(true) - $totalTime;
         [$ms, $s] = explode(' ', microtime());
         $endMicroTime = $s * 1000 + round($ms * 1000);
 
         if ($this->result) {
-            ksort($this->result);
+//            ksort($this->result);
             file_put_contents(TMP . 'result_five_words.txt', implode(PHP_EOL, array_keys($this->result)));
         }
 
@@ -154,13 +132,7 @@ class FiveWordsCommand extends Command
             return;
         }
 
-        $w   = 0;
-        $end = count($word_indexes);
-        do {
-            $word_index = $word_indexes[$w++];
-
-            $word = $this->words_5[$word_index];
-
+        foreach ($word_indexes as $word) {
             $next_word = array_merge($prev_word, $word);
 
             if (1 == $words_count) {
@@ -179,16 +151,10 @@ class FiveWordsCommand extends Command
                 continue;
             }
 
-            $word_indexes_next = $this->prepareMin($word_indexes_next);
+            $word_indexes_next = $this->getTwoMinMerge($this->getLibrary($word_indexes_next));
 
             $this->findWords($words_count - 1, $word_indexes_next, $next_word);
-
-            // beauty
-            if ($this->words_count == $words_count) {
-                $this->progress->tick();
-            }
         }
-        while ($w != $end);
 
         unset($this->word_processing[$words_count]);
     }
@@ -200,6 +166,9 @@ class FiveWordsCommand extends Command
         $check = implode('', $check);
         if (array_key_exists($check, $this->uniq)) {
             return $this->uniq[$check];
+        }
+        if (array_key_exists($check, $this->libraryWord)) {
+            return $this->libraryWord[$check];
         }
 
         $aWords = str_split(implode('', $word), 5);
@@ -222,9 +191,9 @@ class FiveWordsCommand extends Command
             $res = array_intersect_key($res, $this->getWordIndexes($aWords[4]));
         }
 
-        $this->uniq[$check] = array_keys($res);
+        $this->uniq[$check] = $res;
 
-        return $this->uniq[$check];
+        return $res;
     }
 
     private function getWordIndexes(string $sWord) {
@@ -238,19 +207,10 @@ class FiveWordsCommand extends Command
             $del += $this->library[$word[3]];
             $del += $this->library[$word[4]];
 
-            $this->libraryWord[$sWord] = array_diff_key($this->words_indexes, $del);
+            $this->libraryWord[$sWord] = array_diff_key($this->words_5, $del);
         }
 
         return $this->libraryWord[$sWord];
-    }
-
-    private function prepareMin(array $indexes): array {
-        if ($indexes) {
-            $library = $this->getLibrary($indexes);
-            $indexes = $this->getTwoMinMerge($library);
-        }
-
-        return $indexes;
     }
 
     private function isProcessed(): bool {
@@ -328,13 +288,7 @@ class FiveWordsCommand extends Command
     private function getLibrary(array $indexes): array {
         $library = [];
 
-        $i   = 0;
-        $end = count($indexes);
-        do {
-            $index = $indexes[$i++];
-
-            $word = $this->words_5[$index];
-
+        foreach ($indexes as $index => $word) {
             if (empty($library[$word[0]])) {
                 $library[$word[0]] = [];
             }
@@ -350,13 +304,12 @@ class FiveWordsCommand extends Command
             if (empty($library[$word[4]])) {
                 $library[$word[4]] = [];
             }
-            $library[$word[0]][$index] = $index;
-            $library[$word[1]][$index] = $index;
-            $library[$word[2]][$index] = $index;
-            $library[$word[3]][$index] = $index;
-            $library[$word[4]][$index] = $index;
+            $library[$word[0]][$index] = $word;
+            $library[$word[1]][$index] = $word;
+            $library[$word[2]][$index] = $word;
+            $library[$word[3]][$index] = $word;
+            $library[$word[4]][$index] = $word;
         }
-        while ($i != $end);
 
         return $library;
     }
@@ -364,7 +317,6 @@ class FiveWordsCommand extends Command
     private function getTwoMinMerge(array $library): array {
         usort($library, function ($a, $b) { return count($a) - count($b); });
 
-        //return array_keys(array_flip(array_merge($library[0], $library[1])));
-        return array_keys($library[0] + $library[1]);
+        return $library[0] + $library[1];
     }
 }
