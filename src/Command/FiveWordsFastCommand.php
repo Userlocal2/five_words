@@ -96,7 +96,6 @@ class FiveWordsFastCommand extends Command
 
 
         $this->library = $this->getLibrary($this->words_5);
-
         $word1_indexes = $this->getTwoMinMerge($this->library);
 
         $loadTime = microtime(true) - $loadTime;
@@ -110,7 +109,7 @@ class FiveWordsFastCommand extends Command
         $endMicroTime = $s * 1000 + round($ms * 1000);
 
         if ($this->result) {
-//            ksort($this->result);
+            ksort($this->result);
             file_put_contents(TMP . 'result_five_words.txt', implode(PHP_EOL, array_keys($this->result)));
         }
 
@@ -132,7 +131,7 @@ class FiveWordsFastCommand extends Command
             return;
         }
 
-        foreach ($word_indexes as $word) {
+        foreach ($word_indexes as $index => $word) {
             $next_word = array_merge($prev_word, $word);
 
             if (1 == $words_count) {
@@ -140,7 +139,7 @@ class FiveWordsFastCommand extends Command
                 continue;
             }
 
-            $this->word_processing[$words_count] = implode('', $word);
+            $this->word_processing[$words_count] = $index;
 
             if ($this->isProcessed()) {
                 continue;
@@ -214,9 +213,14 @@ class FiveWordsFastCommand extends Command
     }
 
     private function isProcessed(): bool {
-        $a = $this->word_processing;
-        sort($a);
-        $key = implode('', $a);
+        $key = 1;
+
+        $key *= $this->word_processing[5] ?? 1;
+        $key *= $this->word_processing[4] ?? 1;
+        $key *= $this->word_processing[3] ?? 1;
+        $key *= $this->word_processing[2] ?? 1;
+        $key *= $this->word_processing[1] ?? 1;
+
         if (array_key_exists($key, $this->uniq['processed'])) {
             return true;
         }

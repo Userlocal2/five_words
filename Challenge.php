@@ -115,7 +115,7 @@ final class Challenge
             $linesFromFile[$i][2] = reset($chars);
             $linesFromFile[$i][1] = $chars;
 
-            $newIdx                          = implode('.', array_keys($chars));
+            $newIdx                          = implode('|', array_keys($chars));
             Challenge::$newSynonyms[$newIdx] = Challenge::$synonyms[$line[0]];
         }
         while (++$i < $countLines);
@@ -222,11 +222,11 @@ function fillV2(array &$words, int $wordsLength, int $depth, array $charCounters
     $neededCountForLayer            = 5 - $depth;
     $neededLengthOfVectorLayerCheck = $neededCountForLayer * 5;
 
-    for ($i = 0; $i < $wordsLength; $i++) {
+    for ($i = 0; $i < $wordsLength; ++$i) {
         if (1 < $finishedCharsCount) {
             return $result;
         }
-        $word = $words[$i];
+        $word = &$words[$i];
         unset($words[$i]);
 
         $keys = [];
@@ -239,7 +239,7 @@ function fillV2(array &$words, int $wordsLength, int $depth, array $charCounters
 
         [$l1, $l2, $l3, $l4, $l5] = $keys;
 
-        $firstLayerWordIdx = \implode('.', $keys);
+        $firstLayerWordIdx = \implode('|', $keys);
 
         $secondLayerWords      = [];
         $nextLayerCharCounters = $emptyCharCounters;
@@ -247,14 +247,14 @@ function fillV2(array &$words, int $wordsLength, int $depth, array $charCounters
         $nextLayerUniqueCharsCount = 0;
 
         foreach ($words as $secondLayerWord) {
-            if (
-                false === (isset($secondLayerWord[$l5])
-                    || isset($secondLayerWord[$l4])
-                    || isset($secondLayerWord[$l3])
-                    || isset($secondLayerWord[$l2])
-                    || isset($secondLayerWord[$l1]))
-            ) {
+            $needSkip = $secondLayerWord[$l5]
+                ?? $secondLayerWord[$l4]
+                ?? $secondLayerWord[$l3]
+                ?? $secondLayerWord[$l2]
+                ?? $secondLayerWord[$l1]
+                ?? false;
 
+            if (false === $needSkip) {
                 $secondLayerWords[] = $secondLayerWord;
 
                 foreach ($secondLayerWord as $charIdx => $is) {
@@ -265,7 +265,7 @@ function fillV2(array &$words, int $wordsLength, int $depth, array $charCounters
             }
         }
 
-        if ($nextLayerUniqueCharsCount < $neededLengthOfVectorLayerCheck) {
+        if ($nextLayerUniqueCharsCount < $neededLengthOfVectorLayerCheck) { // 385387
             continue;
         }
 
@@ -282,7 +282,7 @@ function fillV2(array &$words, int $wordsLength, int $depth, array $charCounters
 
         $finalLayerRes = [];
         foreach ($secondLayerWords as $secondLayerWord) {
-            $finalLayerRes[] = \implode('.', \array_keys($secondLayerWord));
+            $finalLayerRes[] = \implode('|', \array_keys($secondLayerWord));
         }
         $result[$firstLayerWordIdx] = $finalLayerRes;
     }
