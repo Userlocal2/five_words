@@ -1,6 +1,6 @@
 <?php
 ini_set('memory_limit', '7000M');
-ini_set('error_reporting', E_COMPILE_ERROR);
+ini_set('error_reporting', E_ERROR);
 //ini_set('session.gc_probability', 0);
 
 const EXP_DIR = './tmp';

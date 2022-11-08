@@ -247,14 +247,12 @@ function fillV2(array &$words, int $wordsLength, int $depth, array $charCounters
         $nextLayerUniqueCharsCount = 0;
 
         foreach ($words as $secondLayerWord) {
-            $needSkip = $secondLayerWord[$l5]
-                ?? $secondLayerWord[$l4]
-                ?? $secondLayerWord[$l3]
-                ?? $secondLayerWord[$l2]
-                ?? $secondLayerWord[$l1]
-                ?? false;
-
-            if (false === $needSkip) {
+            if (false === ($secondLayerWord[$l5]
+                    ?? $secondLayerWord[$l4]
+                    ?? $secondLayerWord[$l3]
+                    ?? $secondLayerWord[$l2]
+                    ?? $secondLayerWord[$l1]
+                    ?? false)) {
                 $secondLayerWords[] = $secondLayerWord;
 
                 foreach ($secondLayerWord as $charIdx => $is) {
