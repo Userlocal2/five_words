@@ -24,17 +24,20 @@ RUN apt-get update && apt-get install -y \
     && apt-get update && apt-get -y install libxml2-dev libgpgme11-dev \
     && pecl install gnupg \
     && docker-php-ext-enable gnupg \
-    && docker-php-ext-configure pdo_mysql --with-pdo-mysql=mysqlnd \
-    && docker-php-ext-install \
-      intl \
-      mbstring \
-      pcntl \
-      pdo_mysql \
-      pdo_pgsql \
-      zip \
-      bcmath \
-      opcache \
-      soap
+    && docker-php-ext-configure pdo_mysql --with-pdo-mysql=mysqlnd
+
+RUN docker-php-ext-install \
+          intl \
+          mbstring \
+          pcntl \
+          pdo_mysql \
+          pdo_pgsql \
+          zip \
+          bcmath \
+          opcache \
+          soap
+
+RUN apt-get install -y libgmp-dev && docker-php-ext-install gmp
 
 ADD ./php-cli/php.ini /usr/local/etc/php/php.ini
 

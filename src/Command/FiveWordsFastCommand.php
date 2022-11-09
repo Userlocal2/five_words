@@ -24,6 +24,7 @@ class FiveWordsFastCommand extends Command
     private array $word_processing;
 
     private array $result;
+    private array $word_indexes;
 
     /**
      * Implement this method with your command's logic.
@@ -49,7 +50,8 @@ class FiveWordsFastCommand extends Command
             'processed' => [],
         ];
 
-        $this->libraryWord = [];
+        $this->libraryWord  = [];
+        $this->word_indexes = [];
 
 
         $loadTime = microtime(true);
@@ -127,7 +129,7 @@ class FiveWordsFastCommand extends Command
 
 
     private function findWords(int $words_count, array $word_indexes = [], array $prev_word = []) {
-        if (0 == $words_count || !$word_indexes || $words_count > count($word_indexes)) {
+        if (0 == $words_count) {
             return;
         }
 
@@ -145,7 +147,7 @@ class FiveWordsFastCommand extends Command
                 continue;
             }
 
-            $word_indexes_next = $this->getNextWordsIndexes($next_word);
+            $word_indexes_next = $this->getNextWordsIndexes($words_count);
             if (!$word_indexes_next || ($words_count - 1) > count($word_indexes_next)) {
                 continue;
             }
@@ -159,45 +161,17 @@ class FiveWordsFastCommand extends Command
     }
 
 
-    private function getNextWordsIndexes(array $word): array {
-        $check = $word;
-        sort($check);
-        $check = implode('', $check);
-        if (array_key_exists($check, $this->uniq)) {
-            return $this->uniq[$check];
-        }
-        if (array_key_exists($check, $this->libraryWord)) {
-            return $this->libraryWord[$check];
-        }
+    private function getNextWordsIndexes(int $words_count): array {
+        $prev_res = $this->word_indexes[$words_count + 1] ?? $this->getWordIndexes($this->word_processing[$words_count]);
 
-        $aWords = str_split(implode('', $word), 5);
+        $this->word_indexes[$words_count] = array_intersect_key($prev_res, $this->getWordIndexes($this->word_processing[$words_count]));
 
-        $res = $this->getWordIndexes($aWords[0]);
-
-        if (!empty($aWords[1])) {
-            $res = array_intersect_key($res, $this->getWordIndexes($aWords[1]));
-        }
-
-        if (!empty($aWords[2])) {
-            $res = array_intersect_key($res, $this->getWordIndexes($aWords[2]));
-        }
-
-        if (!empty($aWords[3])) {
-            $res = array_intersect_key($res, $this->getWordIndexes($aWords[3]));
-        }
-
-        if (!empty($aWords[4])) {
-            $res = array_intersect_key($res, $this->getWordIndexes($aWords[4]));
-        }
-
-        $this->uniq[$check] = $res;
-
-        return $res;
+        return $this->word_indexes[$words_count];
     }
 
-    private function getWordIndexes(string $sWord) {
-        if (empty($this->libraryWord[$sWord])) {
-            $word = str_split($sWord);
+    private function getWordIndexes(int $index) {
+        if (empty($this->libraryWord[$index])) {
+            $word = $this->words_5[$index];
             $del  = [];
 
             $del += $this->library[$word[0]];
@@ -206,10 +180,10 @@ class FiveWordsFastCommand extends Command
             $del += $this->library[$word[3]];
             $del += $this->library[$word[4]];
 
-            $this->libraryWord[$sWord] = array_diff_key($this->words_5, $del);
+            $this->libraryWord[$index] = array_diff_key($this->words_5, $del);
         }
 
-        return $this->libraryWord[$sWord];
+        return $this->libraryWord[$index];
     }
 
     private function isProcessed(): bool {
@@ -220,6 +194,8 @@ class FiveWordsFastCommand extends Command
         $key *= $this->word_processing[3] ?? 1;
         $key *= $this->word_processing[2] ?? 1;
         $key *= $this->word_processing[1] ?? 1;
+
+        $key .= 's';
 
         if (array_key_exists($key, $this->uniq['processed'])) {
             return true;
@@ -233,7 +209,6 @@ class FiveWordsFastCommand extends Command
         $aWords = str_split(implode('', $aWords), 5);
         sort($aWords);
         $resWords = $this->multiplyResults($aWords);
-        //$resWords = [$aWords];
 
         foreach ($resWords as $words) {
             sort($words);
@@ -245,7 +220,6 @@ class FiveWordsFastCommand extends Command
                     $this->io->out(implode(' ', $words));
                 }
             }
-
         }
     }
 
@@ -319,8 +293,11 @@ class FiveWordsFastCommand extends Command
     }
 
     private function getTwoMinMerge(array $library): array {
-        usort($library, function ($a, $b) { return count($a) - count($b); });
+        $min1  = min($library);
+        $kMin1 = array_keys($library, $min1);
+        unset($library[$kMin1[0]]);
+        $min2 = min($library);
 
-        return $library[0] + $library[1];
+        return $min1 + $min2;
     }
 }
