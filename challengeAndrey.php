@@ -1,6 +1,6 @@
 <?php
 //ini_set('memory_limit', '7000M');
-ini_set('error_reporting', E_COMPILE_ERROR);
+//ini_set('error_reporting', E_COMPILE_ERROR);
 
 const EXP_DIR     = './tmp';
 const LOG         = EXP_DIR . '/log.log';
@@ -129,8 +129,12 @@ class stat
 
     static public $L4recalcFirstPossiblePointersMain = 0;
     static public $L4recalcFirstPossiblePointersSub  = 0;
+    static public $L4counter                         = 0;
 
-    static $msCollector = 0;
+    static $msCollector         = [];
+    static $msCollectorCounter  = [];
+    static $msCollector2        = [];
+    static $msCollectorCounter2 = [];
 }
 
 # Level1 Optimisation - отрезать "дальний" хвост. Определить максимальное значение Pointer 5 при котором расчет еще имеет смысл.
@@ -147,25 +151,23 @@ class stat
 #           Этот уровнеь удален Он не приносит профита. Инициализация происходит дольше, чем пройтись полностью.
 class main
 {
-    public  $resultArray          = [];
-    public  $resultStings         = [];
-    private $uniqueCharsWordsMult = [];
-    private $detailSimpleMult     = [];
+    public  $resultArray   = [];
+    public  $resultStings  = [];
+    private $bitSimpleMult = [];
 
     private $uniqueCharsWordsSyn = [];
     private $frequencyChars      = [];
     private $arrSimpleMult       = [];
 
-    private $maxMult;
     private $minMult;
+//    private $maxMult;
+    private $charBit       = [];
+    private $countBit2Byte = [];
 
     private $lastIdx = 0;
 
     private $L3LevelRecalc   = 5;
     private $L3RecalcedLevel = 0;
-
-    private $L4Jumping         = true;
-    private $L4JumpingStopDiff = 5;
 
 
     private $pointers = [
@@ -174,14 +176,6 @@ class main
         3 => 2,                 // Указатель для 3 слова
         4 => 1,                 // Указатель для 4 слова
         5 => 0                  // Указатель для 5 слова
-    ];
-
-    private $pointersLastRecalc = [
-        1 => 0,
-        2 => 0,
-        3 => 0,
-        4 => 0,
-        5 => 0,
     ];
 
     private $lastPossiblePointerIdx = [
@@ -193,24 +187,26 @@ class main
     ];
 
     public function __construct() {
+        $result = 1;
+        $count  = 0;
+        foreach (CaHelpers::SIMPLE_DIG_ARR as $char => $value) {
+            $result               *= $value;
+            $this->charBit[$char] = 1 << $count++;
+        }
+        $this->minMult = $result / 101;
+//        $this->maxMult = $result / 2;
+
         $this->initData();
 
-        foreach (CaHelpers::SIMPLE_DIG_ARR as $idx => $val) {
-            $tmpArray = CaHelpers::SIMPLE_DIG_ARR;
-            unset($tmpArray[$idx]);
-            $result = 1;
-
-            foreach ($tmpArray as $idx2 => $val2) {
-                $result *= $val2;
+        for ($cnt = 0; $cnt <= 65535; ++$cnt) {
+            $bit = $cnt;
+            $res = 0;
+            while ($bit) {
+                ++$res;
+                $bit &= $bit - 1;
             }
 
-            $this->maxMult = !isset($this->maxMult) || $this->maxMult < $result
-                ? $result
-                : $this->maxMult;
-
-            $this->minMult = !isset($this->minMult) || $this->minMult > $result
-                ? $result
-                : $this->minMult;
+            $this->countBit2Byte[$cnt] = $res;
         }
 
         $this->L3LevelRecalc = 5;
@@ -218,80 +214,60 @@ class main
     }
 
     private function initData() {
-        $detailSimpleMult     = &$this->detailSimpleMult;
-        $uniqueCharsWordsMult = &$this->uniqueCharsWordsMult;
-        $uniqueCharsWordsSyn  = &$this->uniqueCharsWordsSyn;
+        $uniqueCharsWordsSyn = &$this->uniqueCharsWordsSyn;
+        $bitSimpleMult       = &$this->bitSimpleMult;
+        $charBit             = &$this->charBit;
+        $arrSimpleMult       = &$this->arrSimpleMult;
 
-        $fileArr = explode("\r\n", file_get_contents(DICT));
+        $fileArr = file(DICT, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-        $line = trim(current($fileArr));
-        do {
+        foreach ($fileArr as $line) {
 //                stat::$processedLineFromFile++;
-            $line = trim($line);
 
             // LENGTH_WORDS = 5
-            if (5 !== strlen($line) || 5 !== strlen(count_chars($line, 3))) {
+            if (isset($line[5]) || 5 !== strlen(count_chars($line, 3))) {
                 continue;
             }
 
-            $arrLine = str_split($line);
-            sort($arrLine);
-            $sortedCharsLine = implode($arrLine);
+            $simpleMult = CaHelpers::SIMPLE_DIG_ARR[$line[0]]
+                * CaHelpers::SIMPLE_DIG_ARR[$line[1]]
+                * CaHelpers::SIMPLE_DIG_ARR[$line[2]]
+                * CaHelpers::SIMPLE_DIG_ARR[$line[3]]
+                * CaHelpers::SIMPLE_DIG_ARR[$line[4]];
 
-            $simpleMult = 1
-                * CaHelpers::SIMPLE_DIG_ARR[$arrLine[0]]
-                * CaHelpers::SIMPLE_DIG_ARR[$arrLine[1]]
-                * CaHelpers::SIMPLE_DIG_ARR[$arrLine[2]]
-                * CaHelpers::SIMPLE_DIG_ARR[$arrLine[3]]
-                * CaHelpers::SIMPLE_DIG_ARR[$arrLine[4]];
+            if (!isset($bitSimpleMult[$simpleMult])) {
+                $arrSimpleMult[] = $simpleMult;
 
-            if (!isset($uniqueCharsWordsSyn[$sortedCharsLine])) {
-                foreach ($arrLine as $char) {
-                    $detailSimpleMult[$simpleMult][CaHelpers::SIMPLE_DIG_ARR[$char]] = true;
-                }
-
-                $uniqueCharsWordsMult[$simpleMult]['chars'] = $sortedCharsLine;
-
-                // for debug
-//                    $this->frequencyChars[$arrLine[0]][$sortedCharsLine][] = $line;
-//                    $this->frequencyChars[$arrLine[1]][$sortedCharsLine][] = $line;
-//                    $this->frequencyChars[$arrLine[2]][$sortedCharsLine][] = $line;
-//                    $this->frequencyChars[$arrLine[3]][$sortedCharsLine][] = $line;
-//                    $this->frequencyChars[$arrLine[4]][$sortedCharsLine][] = $line;
+                //$bitSimpleMult[$simpleMult] = 0;
+                $bitSimpleMult[$simpleMult] = $charBit[$line[0]]
+                    | $charBit[$line[1]]
+                    | $charBit[$line[2]]
+                    | $charBit[$line[3]]
+                    | $charBit[$line[4]];
             }
-            $uniqueCharsWordsSyn[$sortedCharsLine][] = $line;
-        }
-        while ($line = trim(next($fileArr)));
+            $uniqueCharsWordsSyn[$simpleMult][] = $line;
+        };
         $fileArr = null;
 
-
-        // for debug
-//        foreach ($this->frequencyChars as $idx => $value) {
-//            $this->frequencyChars[$idx] = count($value);
-//        }
-
-        krsort($uniqueCharsWordsMult);
-        krsort($detailSimpleMult);
-        $this->arrSimpleMult = array_keys($uniqueCharsWordsMult);
-        $this->lastIdx       = count($this->arrSimpleMult) - 1;
-
-        for ($met = 5; $met >= 1; --$met) {
-            $this->lastPossiblePointerIdx[$met] = $this->pointersLastRecalc[$met] = $this->lastIdx;
-        }
+        krsort($bitSimpleMult, SORT_NUMERIC);
+        rsort($arrSimpleMult, SORT_NUMERIC);
+        $this->lastIdx = count($this->arrSimpleMult) - 1;
     }
 
     public function process() {
         // for debug
 //        $this->test1();
 //        return;
+
         $this->checkAndFindPositionUniqueChar();
 
-        foreach ($this->resultArray as $idx => $value) {
+        $arrSimpleMult       = &$this->arrSimpleMult;
+        $uniqueCharsWordsSyn = &$this->uniqueCharsWordsSyn;
+
+        foreach ($this->resultArray as $value) {
             $arrWords = [];
-            for ($met = 5; $met >= 0; --$met) {
-                $mult       = $this->arrSimpleMult[$value[$met]];
-                $string     = $this->uniqueCharsWordsMult[$mult]['chars'];
-                $arrWords[] = $this->uniqueCharsWordsSyn[$string];
+            for ($met = 5; $met >= 1; --$met) {
+                $arrWords[] = $uniqueCharsWordsSyn[$arrSimpleMult[$value[$met]]];
             }
             $this->resultStings = array_merge($this->resultStings, CaHelpers::getResultStrings($arrWords));
         }
@@ -300,44 +276,46 @@ class main
     private function checkAndFindPositionUniqueChar() {
 //        stat::$L2uniqueValidIterationMain++;
 
+        $arrSimpleMult = $this->arrSimpleMult;
+        $bitSimpleMult = $this->bitSimpleMult;
+        $countBit2Byte = $this->countBit2Byte;
+
         $pointers               = &$this->pointers;
         $L3LevelRecalc          = &$this->L3LevelRecalc;
-        $arrSimpleMult          = &$this->arrSimpleMult;
-        $detailSimpleMult       = &$this->detailSimpleMult;
         $lastPossiblePointerIdx = &$this->lastPossiblePointerIdx;
+        $lastRecalcLevel        = &$this->L3RecalcedLevel;
 
-        $checkArray      = [];
-        $testArray       = [];
-        $countUnique     = 0;
-        $lastRecalcLevel = &$this->L3RecalcedLevel;
+        $checkArrayBit = [];
 
-        for ($pointLevel = 5; $pointLevel > 0; --$pointLevel) {
+        $pointLevel = 5;
+//        for ($pointLevel = 5; $pointLevel > 0; --$pointLevel) {
+        do {
 //            stat::$L2uniqueValidIterationSub++;
 
             if (!isset($pointers[$pointLevel + 1])) {
                 // Это условие (в IF) должно выполниться только для 5-го уровня $pointLevel
-                $checkArray[$pointLevel] = [];
-                $L3LevelRecalc           = 4;
+                $checkArrayBit[5] = 0;
+                $L3LevelRecalc    = 4;
             }
             else {
                 // Это условие (в IF) должно выполниться для не 0-го уровня $pointLevel..
-                $checkArray[$pointLevel] = $checkArray[$pointLevel + 1];
+                $checkArrayBit[$pointLevel] = $checkArrayBit[$pointLevel + 1];
                 if ($lastRecalcLevel != $L3LevelRecalc && $L3LevelRecalc == $pointLevel) {
                     $this->L3recalcMaxPossiblePositions();
                 }
                 $L3LevelRecalc = $pointLevel - 1;
             }
 
+            // First 5 = LENGTH_WORDS
+            // Second 5 - level of pointer
             //  Замена константы на значение дало прирост ~0.5 - 1с на 100 млн. итерациях
             $countUnique = 5 * (5 - $pointLevel + 1);
             do {
 //                stat::$L2uniqueValidIterationSub2++;
-                $testArray = $checkArray[$pointLevel] + $detailSimpleMult[$arrSimpleMult[$pointers[$pointLevel]]];
 
-                // First 5 = LENGTH_WORDS
-                // Second 5 - level of pointer
+                $testBit = $checkArrayBit[$pointLevel] | $bitSimpleMult[$arrSimpleMult[$pointers[$pointLevel]]];
 
-                if ($countUnique > count($testArray)) {
+                if ($countUnique > $countBit2Byte[$testBit & 0b0000000001111111111111111] + $countBit2Byte[$testBit >> 16]) {
                     if (1 == $pointLevel && ++$pointers[1] <= $lastPossiblePointerIdx[1]) {
 //                        stat::$L2uniqueValidIterationSub3++;
                         continue;
@@ -349,14 +327,14 @@ class main
                             $L3LevelRecalc = 1;
                         }
                         elseif (3 == $pointLevel) {
-                            $pointers[2]   = $pointers[3] + 1;
-                            $pointers[1]   = $pointers[2] + 1;
+                            $pointers[2]   = $idx = $pointers[3] + 1;
+                            $pointers[1]   = ++$idx;
                             $L3LevelRecalc = 2;
                         }
                         else {
-                            $pointers[3]   = $pointers[4] + 1;
-                            $pointers[2]   = $pointers[3] + 1;
-                            $pointers[1]   = $pointers[2] + 1;
+                            $pointers[3]   = $idx = $pointers[4] + 1;
+                            $pointers[2]   = ++$idx;
+                            $pointers[1]   = ++$idx;
                             $L3LevelRecalc = 3;
                         }
                         continue;
@@ -365,45 +343,62 @@ class main
                     // Переходим на следующий уровень перебора.
                     do {
 //                        stat::$L2uniqueValidIterationSub4++;
-                        if (5 > ++$pointLevel) {
-                            $checkArray[$pointLevel] = $checkArray[$pointLevel + 1];
-                        }
-                        elseif (5 < $pointLevel) {
+                        if (!isset($pointers[++$pointLevel])) {
                             return false;
                         }
-                        else {
-                            $checkArray[5] = [];
-                        }
+
+                        // $checkArrayBit[$pointLevel + 1] ?? 0; ?? 0 - это сработает для 5-го уровня (самого верхнего) будет = 0;
+//                        $checkArrayBit[$pointLevel] = $checkArrayBit[$pointLevel + 1] ?? 0;
+
+//
+//                        if (5 > ++$pointLevel) {
+//                            $checkArrayBit[$pointLevel] = $checkArrayBit[$pointLevel + 1];
+//                        }
+//                        elseif (5 < $pointLevel) {
+//                            return false;
+//                        }
+//                        else {
+//                            $checkArrayBit[5] = 0;
+//                        }
+
                     }
                     while (++$pointers[$pointLevel] > $lastPossiblePointerIdx[$pointLevel]);
                     //  Замена константы на значение дало прирост ~0.5 - 1с на 100 млн. итерациях
-                    $countUnique = 5 * (5 - $pointLevel + 1);
 
-                    if (3 == $pointLevel) {
-                        $pointers[2]   = $pointers[3] + 1;
-                        $pointers[1]   = $pointers[2] + 1;
-                        $L3LevelRecalc = 2;
+
+                    if (2 == $pointLevel) {
+                        $pointers[1]      = $pointers[2] + 1;
+                        $checkArrayBit[2] = $checkArrayBit[3];
+                        $countUnique      = 20;
+                        $L3LevelRecalc    = 1;
                     }
-                    elseif (2 == $pointLevel) {
-                        $pointers[1]   = $pointers[2] + 1;
-                        $L3LevelRecalc = 1;
+                    elseif (3 == $pointLevel) {
+                        $pointers[2]      = $idx = $pointers[3] + 1;
+                        $pointers[1]      = ++$idx;
+                        $checkArrayBit[3] = $checkArrayBit[4];
+                        $countUnique      = 15;
+                        $L3LevelRecalc    = 2;
                     }
                     elseif (4 == $pointLevel) {
-                        $pointers[3]   = $pointers[4] + 1;
-                        $pointers[2]   = $pointers[3] + 1;
-                        $pointers[1]   = $pointers[2] + 1;
-                        $L3LevelRecalc = 3;
+                        $pointers[3]      = $idx = $pointers[4] + 1;
+                        $pointers[2]      = ++$idx;
+                        $pointers[1]      = ++$idx;
+                        $checkArrayBit[4] = $checkArrayBit[5];
+                        $countUnique      = 10;
+                        $L3LevelRecalc    = 3;
                     }
                     else {
-                        $pointers[4]   = $pointers[5] + 1;
-                        $pointers[3]   = $pointers[4] + 1;
-                        $pointers[2]   = $pointers[3] + 1;
-                        $pointers[1]   = $pointers[2] + 1;
-                        $L3LevelRecalc = 4;
+                        $pointers[4]      = $idx = $pointers[5] + 1;
+                        $pointers[3]      = ++$idx;
+                        $pointers[2]      = ++$idx;
+                        $pointers[1]      = ++$idx;
+                        $checkArrayBit[5] = 0;
+                        $countUnique      = 5;
+                        $L3LevelRecalc    = 4;
+
                     }
 
-//                    $this->L3recalcMaxPossiblePositions(2);
-                    $lastRecalcLevel = 0;
+                    $lastRecalcLevel = 5;
                     continue;
                 }
                 break;
@@ -411,22 +406,23 @@ class main
             }
             while (true);
 
-            $checkArray[$pointLevel] = $testArray;
+            $checkArrayBit[$pointLevel] = $testBit;
             if (1 == $pointLevel) {
                 //  Такой уровень может быть в этом месте только при успехе
                 $this->resultArray[] = $pointers;
-                $checkArray[1]       = $checkArray[2];
+                $checkArrayBit[1]    = $checkArrayBit[2];
                 ++$pointLevel;
                 ++$pointers[1];
             }
         }
+        while (--$pointLevel);
 
         return true;
     }
 
     private function L3recalcMaxPossiblePositions() {
         // Ищем последнее значение pointer5, когда "произведение" больше
-        // самой "меньшей" строки $his->$maxMult
+        // самой "меньшей" строки $his->minMult
 
 //        stat::$L3recalcMaxPossiblePositionsMain++;
         $currentPointerArray = $this->pointers;
@@ -448,10 +444,10 @@ class main
                 $idx     = $lastValidIdx;
             }
 
-            $currentPointerArray[$this->L3LevelRecalc] = $idx;
+            $currentPointerArray[$this->L3LevelRecalc] = $count = $idx;
 
             for ($met = $this->L3LevelRecalc - 1; $met >= 1; --$met) {
-                $currentPointerArray[$met] = $currentPointerArray[$met + 1] + 1;
+                $currentPointerArray[$met] = ++$count;
             }
 
             $res = $arrSimpleMult[$currentPointerArray[1]]
@@ -480,8 +476,6 @@ class main
             //  Условие $res >= $this->minMult выше. Приходится применять такой изъеб, как ниже.
             $this->lastPossiblePointerIdx[$this->L3LevelRecalc] = (string)$res == (string)$this->minMult ? $idx :
                 --$idx;
-
-
             break;
         };
 
@@ -527,6 +521,8 @@ class main
             . number_format(stat::$L4recalcFirstPossiblePointersMain, 0, '.', ' '));
         CaHelpers::toLog("\t\t\t\tLevel (4) Sub: "
             . number_format(stat::$L4recalcFirstPossiblePointersSub, 0, '.', ' '));
+        CaHelpers::toLog("\t\t\t\tLevel (4) Cnt: "
+            . number_format(stat::$L4counter, 0, '.', ' '));
 
         CaHelpers::toLog("\tDebug (pointers)");
         for ($log = 5; $log >= 1; --$log) {
@@ -534,65 +530,30 @@ class main
                 . "\t(" . $this->lastPossiblePointerIdx[$log] . "\tMax Possible)");
         }
 
-        CaHelpers::toLog("\tStat MsCollector: " . stat::$msCollector . ' ms');
+        foreach (stat::$msCollector as $idx => $value) {
+            CaHelpers::toLog("\tStat MsCollector:\t" . $value . " ms.\tIDx :" . $idx . ".\tcount: " . stat::$msCollectorCounter[$idx]);
+        }
+
+        foreach (stat::$msCollector2 as $idx => $value) {
+            CaHelpers::toLog("\tStat MsCollector2:\t" . $value . " ms.\tIDx :" . $idx . ".\tcount: " . stat::$msCollectorCounter2[$idx]);
+        }
 
 
     }
 
     public function test1() {
-        $maxFor = 700000;
-
-        $c = 5;
-        $d = 5;
-
-        $a = 0;
+        $maxFor = 20000000;
         [$ms, $s] = explode(' ', microtime());
         $startMicroTime = $s * 1000 + round($ms * 1000);
         for ($met = $maxFor; $met >= 1; $met--) {
-            for ($count = 5; $count >= 1; $count--) {
-                ++$a;
-            }
+
         }
         [$ms, $s] = explode(' ', microtime());
         $endMicroTime = $s * 1000 + round($ms * 1000);
         CaHelpers::toLog('1: ' . ($endMicroTime - $startMicroTime) . ' ms');
-
-        $a = 0;
-        [$ms, $s] = explode(' ', microtime());
-        $startMicroTime = $s * 1000 + round($ms * 1000);
-        for ($met = $maxFor; $met >= 1; $met--) {
-            for ($count = 5; $count >= 1; --$count) {
-                ++$a;
-            }
-        }
-        [$ms, $s] = explode(' ', microtime());
-        $endMicroTime = $s * 1000 + round($ms * 1000);
-        CaHelpers::toLog('2: ' . ($endMicroTime - $startMicroTime) . ' ms');
+        CaHelpers::toLog('1: ' . $res);
 
         return;
-
-        [$ms, $s] = explode(' ', microtime());
-        $startMicroTime = $s * 1000 + round($ms * 1000);
-        for ($met = $maxFor; $met >= 1; $met--) {
-            $this->test3();
-        }
-        [$ms, $s] = explode(' ', microtime());
-        $endMicroTime = $s * 1000 + round($ms * 1000);
-        CaHelpers::toLog('3: ' . ($endMicroTime - $startMicroTime) . ' ms');
-
-        return;
-
-        $c = $this->uniqueCharsWordsMult;
-        [$ms, $s] = explode(' ', microtime());
-        $startMicroTime = $s * 1000 + round($ms * 1000);
-        for ($met = $maxFor; $met >= 1; $met--) {
-            $a = $c[51237167];
-        }
-        [$ms, $s] = explode(' ', microtime());
-        $endMicroTime = $s * 1000 + round($ms * 1000);
-        CaHelpers::toLog('4: ' . ($endMicroTime - $startMicroTime) . ' ms');
-
-        return false;
     }
 }
 
@@ -618,15 +579,7 @@ CaHelpers::toLog("\tMax Used Memory: " . round(memory_get_peak_usage() / 1024 / 
 CaHelpers::toLog(PHP_EOL);
 
 file_put_contents(RESULT_FILE, implode(PHP_EOL, $obj->resultStings));
-//file_put_contents(EXP_DIR . '/debug.csv', implode(PHP_EOL, $obj->testArr));
 
 
-die;
-
-//$q[] = 'abcde';
-//$q[] = 'fghij';
-//$q[] = 'klmno';
-//$q[] = 'prstq';
-//$q[] = 'uvwxy';
 
 
